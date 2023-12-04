@@ -3,13 +3,14 @@ const app = express();
 const path = require("path");
 const mongoose = require("mongoose");
 const methodOverride = require("method-override");
+const AppError = require("./AppError");
 
 const Product = require("./models/product");
 
 main().catch((err) => console.log(err));
 
 async function main() {
-  await mongoose.connect("mongodb://127.0.0.1:27017/farmStand");
+  await mongoose.connect("mongodb://127.0.0.1:27017/farmStand2");
   console.log("mongo connection open");
 }
 
@@ -42,10 +43,28 @@ app.post("/products", async (req, res) => {
 });
 
 // Show Route
-app.get("/products/:id", async (req, res) => {
-  const { id } = req.params;
-  const product = await Product.findById(id);
-  res.render("products/show", { product });
+// app.get("/products/:id", async (req, res, next) => {
+//   const { id } = req.params;
+//   const product = await Product.findById(id);
+//   if (!product) {
+//     next(new AppError("Product Not Found", 404));
+//   }
+//   res.render("products/show", { product });
+// });
+app.get("/products/:id", async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const product = await Product.findById(id);
+
+    if (!product) {
+      const err = new AppError("Product Not Found", 404);
+    }
+
+    res.render("products/show", { product });
+  } catch (err) {
+    // Pass the error to the next middleware (likely an error handling middleware)
+    next(err);
+  }
 });
 
 // Edit Form
@@ -70,6 +89,11 @@ app.delete("/products/:id", async (req, res) => {
   const { id } = req.params;
   const deletedProduct = await Product.findByIdAndDelete(id);
   res.redirect("/products");
+});
+
+app.use((err, req, res, next) => {
+  const { status = 500, message = "Something went wrong" } = err;
+  res.status(status).send(message);
 });
 
 app.listen(3000, () => {
